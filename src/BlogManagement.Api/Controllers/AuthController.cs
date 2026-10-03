@@ -7,15 +7,16 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BlogManagement.Api.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController : ApiControllerBase
     {
         private readonly IAuthService _auth;
+        private readonly IUserService _users;
 
-        public AuthController(IAuthService auth)
+        public AuthController(IAuthService auth, IUserService users)
         {
             _auth = auth;
+            _users = users;
         }
 
         [HttpPost("register")]
@@ -26,10 +27,7 @@ namespace BlogManagement.Api.Controllers
                 var result = await _auth.RegisterAsync(request);
                 return Ok(result);
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         [HttpPost("login")]
@@ -40,31 +38,25 @@ namespace BlogManagement.Api.Controllers
                 var result = await _auth.LoginAsync(request);
                 return Ok(result);
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ex.Message }); }
         }
 
         [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] string refreshToken)
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
         {
             try
             {
-                var result = await _auth.RefreshAsync(refreshToken);
+                var result = await _auth.RefreshAsync(request.RefreshToken);
                 return Ok(result);
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ex.Message }); }
         }
 
         [Authorize]
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] string refreshToken)
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto request)
         {
-            await _auth.LogoutAsync(refreshToken);
+            await _auth.LogoutAsync(request.RefreshToken);
             return NoContent();
         }
 
@@ -72,10 +64,27 @@ namespace BlogManagement.Api.Controllers
         [HttpGet("me")]
         public IActionResult Me()
         {
-            var id = User.FindFirst("sub")?.Value;
-            var email = User.FindFirst("email")?.Value;
+            var id = CurrentUserId;
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
             var username = User.FindFirst("username")?.Value;
-            return Ok(new { id, email, username });
+            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(x => x.Value).ToArray();
+            var permissions = User.FindAll("permission").Select(x => x.Value).ToArray();
+            return Ok(new { id, email, username, roles, permissions });
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request, CancellationToken ct)
+        {
+            await _auth.ChangePasswordAsync(CurrentUserId, request, ct);
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpPut("profile")]
+        public async Task<ActionResult<UserSummaryDto>> UpdateProfile([FromBody] UpdateUserDto request, CancellationToken ct)
+        {
+            return Ok(await _users.UpdateAsync(CurrentUserId, request, CurrentUserId, ct));
         }
     }
 }

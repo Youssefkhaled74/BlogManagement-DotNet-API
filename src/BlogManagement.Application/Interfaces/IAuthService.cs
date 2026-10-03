@@ -11,5 +11,6 @@ namespace BlogManagement.Application.Interfaces
         Task<AuthResultDto> LoginAsync(LoginRequestDto request, CancellationToken cancellationToken = default);
         Task<AuthResultDto> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
         Task LogoutAsync(string refreshToken, CancellationToken cancellationToken = default);
+        Task ChangePasswordAsync(Guid userId, ChangePasswordDto request, CancellationToken cancellationToken = default);
     }
 }

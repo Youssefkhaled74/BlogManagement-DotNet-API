@@ -10,7 +10,11 @@ namespace BlogManagement.Domain.Entities
         Publish,
         Unpublish,
         Approve,
-        Reject
+        Reject,
+        Submit,
+        Activate,
+        Deactivate,
+        Assign
     }
 
     public class AuditLog

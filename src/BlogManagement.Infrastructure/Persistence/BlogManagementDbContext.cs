@@ -33,6 +33,7 @@ namespace BlogManagement.Infrastructure.Persistence
                 b.Property(x => x.Email).IsRequired();
                 b.Property(x => x.Username).IsRequired();
                 b.HasMany(x => x.Roles).WithMany(r => r.Users);
+                b.HasMany(x => x.AuditLogs).WithOne(x => x.PerformedBy).HasForeignKey(x => x.PerformedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             // Role - Permission many-to-many
@@ -41,7 +42,7 @@ namespace BlogManagement.Infrastructure.Persistence
                 b.HasKey(x => x.Id);
                 b.HasIndex(x => x.Name).IsUnique();
                 b.Property(x => x.Name).IsRequired();
-                b.HasMany(x => x.Permissions).WithMany();
+                b.HasMany(x => x.Permissions).WithMany(x => x.Roles);
             });
 
             modelBuilder.Entity<Permission>(b =>
@@ -51,7 +52,12 @@ namespace BlogManagement.Infrastructure.Persistence
                 b.Property(x => x.Name).IsRequired();
             });
 
-            modelBuilder.Entity<Category>(b => { b.HasKey(x => x.Id); b.HasIndex(x => x.Name); });
+            modelBuilder.Entity<Category>(b =>
+            {
+                b.HasKey(x => x.Id);
+                b.HasIndex(x => x.Name).IsUnique();
+                b.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            });
 
             modelBuilder.Entity<Blog>(b =>
             {
@@ -63,13 +69,23 @@ namespace BlogManagement.Infrastructure.Persistence
                 b.HasOne(x => x.Category).WithMany(c => c.Blogs).HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             });
 
-            modelBuilder.Entity<BlogApprovalHistory>(b => { b.HasKey(x => x.Id); });
-            modelBuilder.Entity<AuditLog>(b => { b.HasKey(x => x.Id); });
+            modelBuilder.Entity<BlogApprovalHistory>(b =>
+            {
+                b.HasKey(x => x.Id);
+                b.HasOne(x => x.Blog).WithMany(x => x.ApprovalHistory).HasForeignKey(x => x.BlogId).OnDelete(DeleteBehavior.Cascade);
+                b.HasOne(x => x.ApprovedBy).WithMany().HasForeignKey(x => x.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<AuditLog>(b =>
+            {
+                b.HasKey(x => x.Id);
+                b.HasIndex(x => new { x.EntityName, x.EntityId });
+            });
 
             modelBuilder.Entity<Employee>(b =>
             {
                 b.HasKey(x => x.Id);
-                b.HasIndex(x => x.EmployeeNumber).IsUnique(false);
+                b.HasIndex(x => x.EmployeeNumber).IsUnique().HasFilter("[EmployeeNumber] IS NOT NULL");
+                b.HasIndex(x => x.UserId).IsUnique().HasFilter("[UserId] IS NOT NULL");
                 b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
             });
 

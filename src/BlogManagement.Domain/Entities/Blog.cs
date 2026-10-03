@@ -7,8 +7,9 @@ namespace BlogManagement.Domain.Entities
     {
         Draft = 0,
         PendingApproval = 1,
-        Published = 2,
-        Rejected = 3
+        Approved = 2,
+        Published = 3,
+        Rejected = 4
     }
 
     public class Blog
@@ -18,7 +19,9 @@ namespace BlogManagement.Domain.Entities
         public string Slug { get; set; } = null!;
         public string Content { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
         public DateTime? PublishedAt { get; set; }
+        public string? ReviewComment { get; set; }
         public BlogStatus Status { get; set; } = BlogStatus.Draft;
 
         public Guid AuthorId { get; set; }
@@ -28,6 +31,5 @@ namespace BlogManagement.Domain.Entities
         public Category? Category { get; set; }
 
         public ICollection<BlogApprovalHistory> ApprovalHistory { get; set; } = new List<BlogApprovalHistory>();
-        public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
     }
 }
