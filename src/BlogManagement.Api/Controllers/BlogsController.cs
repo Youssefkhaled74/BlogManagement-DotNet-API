@@ -1,4 +1,5 @@
 using BlogManagement.Api.Security;
+using BlogManagement.Api.Uploads;
 using BlogManagement.Application.DTOs;
 using BlogManagement.Application.Interfaces;
 using BlogManagement.Application.Security;
@@ -12,6 +13,29 @@ namespace BlogManagement.Api.Controllers;
 [Route("api/blogs")]
 public sealed class BlogsController(IBlogService service) : ApiControllerBase
 {
+    [HttpPost("{id:guid}/image"), HasPermission(Permissions.BlogsUpdate)]
+    [Consumes("multipart/form-data"), RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<ActionResult<BlogDto>> UploadImage(Guid id, [FromForm] ImageUploadRequest request,
+        [FromServices] ImageStorage images, CancellationToken ct)
+    {
+        var blog = await service.GetAsync(id, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
+        if (blog.AuthorId != CurrentUserId && !HasPermission(Permissions.BlogsReview)) return Forbid();
+        if (blog.Status is BlogStatus.PendingApproval or BlogStatus.Published)
+            throw new InvalidOperationException("A pending or published blog cannot be edited.");
+        var url = await images.SaveAsync(request.File, ct);
+        var result = await service.SetImageAsync(id, url, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
+        images.Delete(blog.ImageUrl);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}/image"), HasPermission(Permissions.BlogsUpdate)]
+    public async Task<ActionResult<BlogDto>> DeleteImage(Guid id, [FromServices] ImageStorage images, CancellationToken ct)
+    {
+        var blog = await service.GetAsync(id, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
+        var result = await service.SetImageAsync(id, null, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
+        images.Delete(blog.ImageUrl);
+        return Ok(result);
+    }
     [HttpGet, HasPermission(Permissions.BlogsRead)]
     public async Task<ActionResult<PagedResult<BlogDto>>> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
@@ -35,9 +59,11 @@ public sealed class BlogsController(IBlogService service) : ApiControllerBase
         Ok(await service.UpdateAsync(id, request, CurrentUserId, HasPermission(Permissions.BlogsReview), ct));
 
     [HttpDelete("{id:guid}"), HasPermission(Permissions.BlogsDelete)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromServices] ImageStorage images, CancellationToken ct)
     {
+        var blog = await service.GetAsync(id, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
         await service.DeleteAsync(id, CurrentUserId, HasPermission(Permissions.BlogsReview), ct);
+        images.Delete(blog.ImageUrl);
         return NoContent();
     }
 

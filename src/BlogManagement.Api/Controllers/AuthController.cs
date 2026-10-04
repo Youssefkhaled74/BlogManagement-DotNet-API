@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using BlogManagement.Application.DTOs;
+using BlogManagement.Api.Uploads;
+using BlogManagement.Api.Localization;
 using BlogManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +29,7 @@ namespace BlogManagement.Api.Controllers
                 var result = await _auth.RegisterAsync(request);
                 return Ok(result);
             }
-            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ApiMessages.Translate(ex.Message) }); }
         }
 
         [HttpPost("login")]
@@ -38,7 +40,7 @@ namespace BlogManagement.Api.Controllers
                 var result = await _auth.LoginAsync(request);
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ex.Message }); }
+            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ApiMessages.Translate(ex.Message) }); }
         }
 
         [HttpPost("refresh")]
@@ -49,7 +51,7 @@ namespace BlogManagement.Api.Controllers
                 var result = await _auth.RefreshAsync(request.RefreshToken);
                 return Ok(result);
             }
-            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ex.Message }); }
+            catch (UnauthorizedAccessException ex) { return Unauthorized(new { error = ApiMessages.Translate(ex.Message) }); }
         }
 
         [Authorize]
@@ -62,14 +64,16 @@ namespace BlogManagement.Api.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public IActionResult Me()
+        public async Task<IActionResult> Me(CancellationToken ct)
         {
             var id = CurrentUserId;
             var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
             var username = User.FindFirst("username")?.Value;
             var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(x => x.Value).ToArray();
             var permissions = User.FindAll("permission").Select(x => x.Value).ToArray();
-            return Ok(new { id, email, username, roles, permissions });
+            var profile = await _users.GetAsync(id, ct);
+            return Ok(new { id, email = profile.Email, username = profile.Username,
+                profile.DisplayName, profile.ProfileImageUrl, roles, permissions });
         }
 
         [Authorize]
@@ -85,6 +89,27 @@ namespace BlogManagement.Api.Controllers
         public async Task<ActionResult<UserSummaryDto>> UpdateProfile([FromBody] UpdateUserDto request, CancellationToken ct)
         {
             return Ok(await _users.UpdateAsync(CurrentUserId, request, CurrentUserId, ct));
+        }
+
+        [Authorize, HttpPost("profile/image")]
+        [Consumes("multipart/form-data"), RequestSizeLimit(6 * 1024 * 1024)]
+        public async Task<ActionResult<UserSummaryDto>> UploadProfileImage([FromForm] ImageUploadRequest request,
+            [FromServices] ImageStorage images, CancellationToken ct)
+        {
+            var user = await _users.GetAsync(CurrentUserId, ct);
+            var url = await images.SaveAsync(request.File, ct);
+            var result = await _users.SetProfileImageAsync(CurrentUserId, url, ct);
+            images.Delete(user.ProfileImageUrl);
+            return Ok(result);
+        }
+
+        [Authorize, HttpDelete("profile/image")]
+        public async Task<ActionResult<UserSummaryDto>> DeleteProfileImage([FromServices] ImageStorage images, CancellationToken ct)
+        {
+            var user = await _users.GetAsync(CurrentUserId, ct);
+            var result = await _users.SetProfileImageAsync(CurrentUserId, null, ct);
+            images.Delete(user.ProfileImageUrl);
+            return Ok(result);
         }
     }
 }

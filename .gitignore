@@ -34,3 +34,9 @@ packages/
 .DS_Store
 Thumbs.db
 
+## React frontend
+node_modules/
+.pnpm-store/
+frontend/dist/
+src/BlogManagement.Api/wwwroot/uploads/
+

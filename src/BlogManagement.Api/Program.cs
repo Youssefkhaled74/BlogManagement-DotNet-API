@@ -2,6 +2,9 @@ using System.Security.Claims;
 using System.Text;
 using BlogManagement.Api.Middleware;
 using BlogManagement.Api.Security;
+using BlogManagement.Api.Uploads;
+using BlogManagement.Api.Localization;
+using Microsoft.AspNetCore.Mvc;
 using BlogManagement.Application.Interfaces;
 using BlogManagement.Application.Security;
 using BlogManagement.Infrastructure.Auth;
@@ -14,6 +17,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+        .AddEnvironmentVariables().AddCommandLine(args);
+}
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is missing.");
@@ -22,9 +30,11 @@ var jwtKey = builder.Configuration["Jwt:Key"]
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
 
-builder.Services.AddDbContext<BlogManagementDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<BlogManagementDbContext>(options => options.UseSqlServer(
+    builder.Configuration.GetConnectionString("DefaultConnection") ?? connectionString));
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<ImageStorage>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
@@ -68,7 +78,22 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy =>
     policy.AllowAnyHeader().AllowAnyMethod();
 }));
 
-builder.Services.AddControllers();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.SetDefaultCulture("en").AddSupportedCultures("en", "ar").AddSupportedUICultures("en", "ar");
+    options.ApplyCurrentCultureToResponseHeaders = true;
+});
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new ValidationProblemDetails(
+        context.ModelState.Where(entry => entry.Value?.Errors.Count > 0).ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value!.Errors.Select(error => ApiMessages.Validation(entry.Key,
+                string.IsNullOrEmpty(error.ErrorMessage) ? "Invalid value." : error.ErrorMessage)).ToArray()))
+    {
+        Status = 400, Title = ApiMessages.Translate("Validation failed"), Instance = context.HttpContext.Request.Path
+    });
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
 builder.Services.AddSwaggerGen(options =>
@@ -92,9 +117,24 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Environment.WebRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(builder.Environment.WebRootPath, "uploads"));
+builder.Environment.WebRootFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(builder.Environment.WebRootPath);
 var app = builder.Build();
 
+app.UseRequestLocalization();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (response.StatusCode is 401 or 403)
+        await response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = response.StatusCode,
+            Title = ApiMessages.Translate(response.StatusCode == 401 ? "Unauthorized" : "Forbidden"),
+            Detail = ApiMessages.Translate(response.StatusCode == 401 ? "Please sign in to continue." : "You do not have permission to perform this action.")
+        });
+});
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -102,6 +142,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -113,7 +154,15 @@ if (builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup"))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<BlogManagementDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await ImageSchemaUpgrade.ApplyAsync(db);
     await DataSeeder.SeedAsync(db);
+}
+
+if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("Database:SeedDemoData"))
+{
+    using var scope = app.Services.CreateScope();
+    await DemoDataSeeder.SeedAsync(scope.ServiceProvider.GetRequiredService<BlogManagementDbContext>(),
+        builder.Configuration["Database:DemoPassword"] ?? DemoDataSeeder.DefaultPassword);
 }
 
 app.Run();

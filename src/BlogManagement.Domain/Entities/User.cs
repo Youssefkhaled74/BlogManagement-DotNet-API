@@ -10,6 +10,7 @@ namespace BlogManagement.Domain.Entities
         public string Email { get; set; } = null!;
         public string PasswordHash { get; set; } = null!;
         public string? DisplayName { get; set; }
+        public string? ProfileImageUrl { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }

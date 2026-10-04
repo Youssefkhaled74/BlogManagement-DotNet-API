@@ -6,6 +6,16 @@ namespace BlogManagement.Infrastructure.Persistence;
 
 public static class DataSeeder
 {
+    private static readonly IReadOnlyDictionary<string, string> DefaultCategories = new Dictionary<string, string>
+    {
+        ["Technology"] = "Technology news, tools, and trends.",
+        ["Software Development"] = "Programming, frameworks, and software engineering.",
+        ["Artificial Intelligence"] = "AI, machine learning, and practical applications.",
+        ["Business"] = "Entrepreneurship, management, and business insights.",
+        ["Education"] = "Learning resources, tutorials, and career development.",
+        ["Lifestyle"] = "Everyday life, productivity, and personal experiences."
+    };
+
     private static readonly IReadOnlyDictionary<string, string> PermissionDescriptions = new Dictionary<string, string>
     {
         [Permissions.UsersRead] = "View users",
@@ -56,6 +66,19 @@ public static class DataSeeder
             Permissions.CategoriesRead, Permissions.BlogsRead, Permissions.BlogsCreate,
             Permissions.BlogsUpdate, Permissions.BlogsDelete, Permissions.BlogsSubmit
         ], permissions, ct);
+        await db.SaveChangesAsync(ct);
+        await SeedCategoriesAsync(db, ct);
+    }
+
+    public static async Task SeedCategoriesAsync(BlogManagementDbContext db, CancellationToken ct = default)
+    {
+        var existingNames = await db.Categories.Select(x => x.Name).ToListAsync(ct);
+        var names = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, description) in DefaultCategories)
+        {
+            if (names.Add(name))
+                db.Categories.Add(new Category { Id = Guid.NewGuid(), Name = name, Description = description });
+        }
         await db.SaveChangesAsync(ct);
     }
 

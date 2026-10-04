@@ -67,7 +67,7 @@ public sealed class UserService : IUserService
         var user = await _db.Users.Include(x => x.Roles).FirstOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new KeyNotFoundException("User not found.");
         var requested = roleIds.Distinct().ToArray();
-        var roles = await _db.Roles.Where(x => requested.Contains(x.Id)).ToListAsync(ct);
+        var roles = await _db.Roles.Where(x => Enumerable.Contains(requested, x.Id)).ToListAsync(ct);
         if (roles.Count != requested.Length) throw new InvalidOperationException("One or more roles do not exist.");
         user.Roles.Clear();
         foreach (var role in roles) user.Roles.Add(role);
@@ -78,5 +78,15 @@ public sealed class UserService : IUserService
 
     private static IQueryable<UserSummaryDto> Map(IQueryable<User> query) => query.Select(x => new UserSummaryDto(
         x.Id, x.Username, x.Email, x.DisplayName, x.IsActive, x.CreatedAt, x.LastLoginAt,
-        x.Roles.OrderBy(r => r.Name).Select(r => r.Name).ToList()));
+        x.Roles.OrderBy(r => r.Name).Select(r => r.Name).ToList(), x.ProfileImageUrl));
+
+    public async Task<UserSummaryDto> SetProfileImageAsync(Guid id, string? imageUrl, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("User not found.");
+        user.ProfileImageUrl = imageUrl;
+        await _db.SaveChangesAsync(ct);
+        await _audit.WriteAsync(AuditAction.Update, nameof(User), id, id, new { ProfileImageUrl = imageUrl }, ct);
+        return await GetAsync(id, ct);
+    }
 }

@@ -57,8 +57,9 @@ public sealed class RoleService : IRoleService
             ?? throw new KeyNotFoundException("Role not found.");
         if (role.Name == SystemRoles.Admin && Permissions.All.Except(permissions, StringComparer.OrdinalIgnoreCase).Any())
             throw new InvalidOperationException("The Admin role must keep every system permission.");
+        var resolved = await ResolvePermissionsAsync(permissions, ct);
         role.Permissions.Clear();
-        foreach (var permission in await ResolvePermissionsAsync(permissions, ct)) role.Permissions.Add(permission);
+        foreach (var permission in resolved) role.Permissions.Add(permission);
         await _db.SaveChangesAsync(ct);
         await _audit.WriteAsync(AuditAction.Assign, nameof(Role), id, actorId, new { Permissions = permissions }, ct);
         return await GetAsync(id, ct);
@@ -78,7 +79,8 @@ public sealed class RoleService : IRoleService
     private async Task<ICollection<Permission>> ResolvePermissionsAsync(IEnumerable<string> names, CancellationToken ct)
     {
         var requested = names.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var permissions = await _db.Permissions.Where(x => requested.Contains(x.Name)).ToListAsync(ct);
+        // Explicit Enumerable overload avoids .NET 10's span overload in EF expression trees.
+        var permissions = await _db.Permissions.Where(x => Enumerable.Contains(requested, x.Name)).ToListAsync(ct);
         var missing = requested.Except(permissions.Select(x => x.Name), StringComparer.OrdinalIgnoreCase).ToArray();
         if (missing.Length != 0) throw new InvalidOperationException($"Unknown permissions: {string.Join(", ", missing)}");
         return permissions;

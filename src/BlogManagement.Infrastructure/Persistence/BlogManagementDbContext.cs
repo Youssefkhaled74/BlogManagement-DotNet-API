@@ -29,6 +29,7 @@ namespace BlogManagement.Infrastructure.Persistence
             {
                 b.HasKey(x => x.Id);
                 b.HasIndex(x => x.Email).IsUnique();
+                b.Property(x => x.ProfileImageUrl).HasMaxLength(500);
                 b.HasIndex(x => x.Username).IsUnique();
                 b.Property(x => x.Email).IsRequired();
                 b.Property(x => x.Username).IsRequired();
@@ -63,6 +64,7 @@ namespace BlogManagement.Infrastructure.Persistence
             {
                 b.HasKey(x => x.Id);
                 b.HasIndex(x => x.Slug).IsUnique();
+                b.Property(x => x.ImageUrl).HasMaxLength(500);
                 b.Property(x => x.Title).IsRequired();
                 b.Property(x => x.Content).IsRequired();
                 b.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorId).OnDelete(DeleteBehavior.Restrict);

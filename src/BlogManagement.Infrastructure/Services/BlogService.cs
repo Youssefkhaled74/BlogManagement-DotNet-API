@@ -9,6 +9,21 @@ namespace BlogManagement.Infrastructure.Services;
 
 public sealed class BlogService : IBlogService
 {
+    public async Task<BlogDto> SetImageAsync(Guid id, string? imageUrl, Guid actorId, bool canManageAll, CancellationToken ct = default)
+    {
+        var blog = await _db.Blogs.FirstOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Blog not found.");
+        EnsureOwnerOrManager(blog, actorId, canManageAll);
+        if (blog.Status is BlogStatus.PendingApproval or BlogStatus.Published)
+            throw new InvalidOperationException("A pending or published blog cannot be edited.");
+        blog.ImageUrl = imageUrl;
+        blog.UpdatedAt = DateTime.UtcNow;
+        blog.Status = BlogStatus.Draft;
+        blog.ReviewComment = null;
+        await _db.SaveChangesAsync(ct);
+        await _audit.WriteAsync(AuditAction.Update, nameof(Blog), id, actorId, new { ImageUrl = imageUrl }, ct);
+        return await LoadDtoAsync(id, ct);
+    }
     private readonly BlogManagementDbContext _db;
     private readonly IAuditService _audit;
     public BlogService(BlogManagementDbContext db, IAuditService audit) => (_db, _audit) = (db, audit);
@@ -181,7 +196,8 @@ public sealed class BlogService : IBlogService
         x.Id, x.Title, x.Slug, x.Content, x.Status, x.AuthorId,
         x.Author == null ? "Unknown" : x.Author.Username,
         x.CategoryId, x.Category == null ? "Unknown" : x.Category.Name,
-        x.CreatedAt, x.UpdatedAt, x.PublishedAt, x.ReviewComment));
+        x.CreatedAt, x.UpdatedAt, x.PublishedAt, x.ReviewComment, x.ImageUrl,
+        x.Author == null ? null : x.Author.ProfileImageUrl));
 
     private async Task EnsureCategoryAsync(Guid categoryId, CancellationToken ct)
     {

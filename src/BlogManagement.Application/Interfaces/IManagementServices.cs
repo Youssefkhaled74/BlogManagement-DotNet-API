@@ -14,6 +14,7 @@ public interface ICategoryService
 
 public interface IBlogService
 {
+    Task<BlogDto> SetImageAsync(Guid id, string? imageUrl, Guid actorId, bool canManageAll, CancellationToken ct = default);
     Task<PagedResult<BlogDto>> GetAllAsync(Guid userId, bool canReviewAll, int page, int pageSize, BlogStatus? status, string? search, CancellationToken ct = default);
     Task<BlogDto> GetAsync(Guid id, Guid userId, bool canReviewAll, CancellationToken ct = default);
     Task<BlogDto> CreateAsync(CreateBlogDto request, Guid actorId, CancellationToken ct = default);
@@ -28,6 +29,7 @@ public interface IBlogService
 
 public interface IUserService
 {
+    Task<UserSummaryDto> SetProfileImageAsync(Guid id, string? imageUrl, CancellationToken ct = default);
     Task<PagedResult<UserSummaryDto>> GetAllAsync(int page, int pageSize, string? search, CancellationToken ct = default);
     Task<UserSummaryDto> GetAsync(Guid id, CancellationToken ct = default);
     Task<UserSummaryDto> UpdateAsync(Guid id, UpdateUserDto request, Guid actorId, CancellationToken ct = default);

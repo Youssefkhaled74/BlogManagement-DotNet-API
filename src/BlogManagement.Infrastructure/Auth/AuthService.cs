@@ -211,5 +211,5 @@ public sealed class AuthService : IAuthService
 
     private static UserSummaryDto MapUser(User user) => new(
         user.Id, user.Username, user.Email, user.DisplayName, user.IsActive,
-        user.CreatedAt, user.LastLoginAt, user.Roles.Select(x => x.Name).OrderBy(x => x).ToArray());
+        user.CreatedAt, user.LastLoginAt, user.Roles.Select(x => x.Name).OrderBy(x => x).ToArray(), user.ProfileImageUrl);
 }

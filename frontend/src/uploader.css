@@ -1,0 +1,20 @@
+.upload-card{border:1px solid #dfe6d9;border-radius:14px;padding:18px;margin:20px 0;background:#fff}
+.upload-label{display:block;font-size:12px;font-weight:600;margin-bottom:12px}
+.upload-card button{margin-top:0}
+.upload-input{position:absolute;width:1px;height:1px;padding:0;margin:0;opacity:0;overflow:hidden;clip-path:inset(50%);border:0}
+.upload-card:focus-within{border-color:#7c9764}
+.upload-zone{display:flex;align-items:center;gap:20px;padding:24px;border:1.5px dashed #c8d5bf;border-radius:11px;background:#f6f8f1;transition:background .15s,border-color .15s}
+.upload-zone.dragging{background:#e6efda;border-color:#385b43}
+.upload-icon{display:grid;place-items:center;flex-shrink:0;width:64px;height:64px;background:#e8eedd;color:#48623e;border-radius:18px}
+.upload-icon svg{width:32px;height:32px}
+.upload-copy{min-width:0}.upload-copy strong{font-size:14px}.upload-copy p{font-size:12px;line-height:1.7;margin:7px 0 13px;color:#74826e}
+.upload-browse{font-size:12px;font-weight:600;background:#223d31;border-color:#223d31;color:#fff;padding:9px 14px;display:inline-flex;align-items:center;gap:16px}
+.upload-browse:hover{background:#385b43}
+.upload-card .upload-preview{width:110px;height:110px;object-fit:cover;border-radius:10px;border:1px solid #dfe6d9;flex-shrink:0}
+.upload-details{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.upload-remove{font-size:11px;border:0;padding:6px 0;color:#a14f43;background:transparent;white-space:nowrap}
+.upload-file{display:flex;align-items:center;gap:8px;background:#eef4e6;border-radius:7px;padding:9px 11px;margin:10px 0;font-size:12px;color:#48623e}
+.upload-file>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}
+.upload-file small{margin-inline-start:auto;white-space:nowrap}
+.upload-error{font-size:12px;background:#fae9e5;color:#963f3f;border-radius:7px;padding:10px 12px}
+@media(max-width:480px){.upload-card{padding:14px}.upload-zone{padding:18px;gap:14px;flex-direction:column;text-align:center}.upload-details{align-items:flex-start;flex-wrap:wrap}.upload-card .upload-preview{width:100%;height:150px}.upload-icon{width:52px;height:52px}}

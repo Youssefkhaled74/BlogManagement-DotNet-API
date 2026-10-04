@@ -22,6 +22,7 @@ namespace BlogManagement.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public DateTime? PublishedAt { get; set; }
         public string? ReviewComment { get; set; }
+        public string? ImageUrl { get; set; }
         public BlogStatus Status { get; set; } = BlogStatus.Draft;
 
         public Guid AuthorId { get; set; }

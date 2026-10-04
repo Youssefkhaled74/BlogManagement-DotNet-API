@@ -26,7 +26,8 @@ public sealed record UserSummaryDto(
     bool IsActive,
     DateTime CreatedAt,
     DateTime? LastLoginAt,
-    IReadOnlyCollection<string> Roles);
+    IReadOnlyCollection<string> Roles,
+    string? ProfileImageUrl = null);
 
 public sealed record UpdateUserDto(
     [Required, MinLength(2), MaxLength(80)] string Username,
@@ -59,7 +60,9 @@ public sealed record BlogDto(
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     DateTime? PublishedAt,
-    string? ReviewComment);
+    string? ReviewComment,
+    string? ImageUrl = null,
+    string? AuthorImageUrl = null);
 
 public sealed record CreateBlogDto(
     [Required, MinLength(3), MaxLength(250)] string Title,

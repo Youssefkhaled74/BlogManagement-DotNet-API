@@ -1,6 +1,7 @@
 using BlogManagement.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using BlogManagement.Api.Localization;
 
 namespace BlogManagement.Api.Middleware;
 
@@ -20,11 +21,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
                 UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
                 ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden"),
                 DbUpdateException => (StatusCodes.Status409Conflict, "Database conflict"),
-                InvalidOperationException => (StatusCodes.Status400BadRequest, "Invalid operation"),
+                InvalidOperationException { InnerException: null } => (StatusCodes.Status400BadRequest, "Invalid operation"),
                 _ => (StatusCodes.Status500InternalServerError, "Unexpected server error")
             };
 
-            if (status == StatusCodes.Status500InternalServerError)
+            if (status == StatusCodes.Status500InternalServerError || exception.InnerException is not null)
                 logger.LogError(exception, "Unhandled request exception");
 
             context.Response.StatusCode = status;
@@ -37,8 +38,8 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
             await context.Response.WriteAsJsonAsync(new ProblemDetails
             {
                 Status = status,
-                Title = title,
-                Detail = detail,
+                Title = ApiMessages.Translate(title),
+                Detail = ApiMessages.Translate(detail),
                 Instance = context.Request.Path
             });
         }
